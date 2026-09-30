@@ -1,5 +1,5 @@
 {
-  "model_version": "20260924-102606",
+  "model_version": "20260930-132209",
   "sklearn_version": "1.9.1",
   "features": [
     "bearing_temp_c",
@@ -10,5 +10,6 @@
   ],
   "threshold": 0.3,
   "test_roc_auc": 0.8131,
-  "failure_rate": 0.0587
+  "failure_rate": 0.0587,
+  "trained_on_weeks": null
 }

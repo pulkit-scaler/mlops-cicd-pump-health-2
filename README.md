@@ -1,34 +1,38 @@
-# Pump health, deployed by a pipeline
+# Pump health, released with care
 
-Companion code for the session on CI/CD with GitHub Actions.
+Companion code for the second session on CI/CD with GitHub Actions.
 
 A water utility logs five readings from each of its pumps once a day. A model
 scores the latest readings for the chance that the pump fails within seven
 days, and a small FastAPI service answers one question over HTTP: should a
 crew inspect this pump first.
 
-This is the same service as in the Docker and ECS sessions, with one addition.
-`/health` also reports `git_sha`, the commit the running image was built from,
-so a single request tells you which version is live.
+This repository starts where the first CI/CD session ended. Every pull request
+is tested, and every push to `main` that passes its tests is deployed to
+Amazon ECS. The session adds the rest: branch protection, a model-quality
+gate, a staging environment with an approval before production, rollback,
+notifications, and a weekly check of the live model that can start a retrain.
 
 ## Layout
 
 ```
-train.py            generates the readings from a fixed seed, fits the model, writes model/
-app/main.py         the service: GET /health, POST /predict
-model/              model.joblib and meta.json, committed so the image can be built at once
-requirements.txt    exact versions, the environment the image freezes
-Dockerfile          how the image is built; GIT_SHA is a build argument
-.dockerignore       what the build never sees
+app/main.py              the service: GET /health, POST /predict
+model/                   model.joblib and meta.json, committed so the image can be built at once
+train.py                 fits the model on the history, optionally plus recent labelled weeks
+pumps.py                 the pumps, simulated: the history and one week of labelled readings at a time
+data/holdout.csv         5,000 labelled readings no model is trained on
+tests/                   the service's tests, run on every pull request
+infra/                   up.sh and down.sh stand up and delete each environment on AWS
+.github/workflows/       the pipeline
+Dockerfile, .dockerignore, requirements*.txt
 ```
 
-The session adds `.github/workflows/deploy.yml`, which builds the image,
-pushes it to Amazon ECR and rolls it out on Amazon ECS on every push to `main`.
+## Start
 
-## Run it locally
+Press **Use this template** to make your own copy, clone it, then
 
 ```bash
-docker build --build-arg GIT_SHA=$(git rev-parse HEAD) -t pump-health .
-docker run -d --name pump-api -p 9000:8000 pump-health
-curl -s http://localhost:9000/health
+infra/up.sh production
 ```
+
+Delete everything with `infra/down.sh` when you are done.

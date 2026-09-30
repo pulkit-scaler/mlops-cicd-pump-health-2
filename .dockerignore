@@ -7,3 +7,6 @@ __pycache__
 .env
 scratch
 .DS_Store
+data
+infra
+tests

@@ -15,7 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Code and model last, because they change most often.
-COPY train.py .
+COPY train.py pumps.py ./
 COPY app/ app/
 COPY model/ model/
 
