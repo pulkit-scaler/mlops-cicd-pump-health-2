@@ -6,12 +6,14 @@
 #     infra/up.sh staging       # a second copy: its own cluster, load balancer and service
 #
 # Safe to run twice. Anything that already exists is left alone. Needs the AWS
-# CLI signed in to us-east-1, and Docker for the first image.
+# CLI signed in to us-east-1, and Docker for the first image. production also
+# needs GH_TOKEN, a GitHub token that can read this repository.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ENV=${1:?usage: infra/up.sh production|staging}
 case "$ENV" in
-  production) CLUSTER=mlops-cluster; NAME=pump-health ;;
+  production) CLUSTER=mlops-cluster; NAME=pump-health
+              : "${GH_TOKEN:?production needs GH_TOKEN, a GitHub token that can read this repository}" ;;
   staging)    CLUSTER=mlops-staging; NAME=pump-health-staging ;;
   *) echo "usage: infra/up.sh production|staging" >&2; exit 2 ;;
 esac
@@ -121,8 +123,9 @@ echo "$ENV service $NAME stable in $CLUSTER, ${SECONDS} s in all"
 
 # --- Production only: Part 1's deploy role, which trusts the main branch of this repository
 if [ "$ENV" = production ]; then
-  read OWNER_ID REPO_ID <<< "$(curl -s "https://api.github.com/repos/$GITHUB_REPO" |
+  read OWNER_ID REPO_ID <<< "$(curl -s -H "Authorization: Bearer $GH_TOKEN" "https://api.github.com/repos/$GITHUB_REPO" |
     python3 -c 'import json, sys; d = json.load(sys.stdin); print(d["owner"]["id"], d["id"])')"
+  : "${REPO_ID:?GitHub returned no IDs. Check that GH_TOKEN can read your repository}"
   SUBJECT="repo:${GITHUB_REPO%/*}@${OWNER_ID}/${GITHUB_REPO#*/}@${REPO_ID}:ref:refs/heads/main"
   cat > scratch/github-trust-part1.json <<JSON
 {"Version": "2012-10-17", "Statement": [{"Effect": "Allow",
