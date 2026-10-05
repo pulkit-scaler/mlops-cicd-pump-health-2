@@ -6,6 +6,35 @@
 # the names from Part 1. Staging has the same pieces with -staging in the name.
 q() { v=$(aws "$@" --output text 2>/dev/null); [ "$v" = None ] && v=; echo "$v"; }
 
+# The CLI must be signed in first. q hides errors, so with expired credentials
+# every ID below would come back empty, and up.sh would try to create it all
+# again. An SSO profile gets its sign-in page opened, when there is a terminal.
+if [ -z "${LOOKUP_SIGNED_IN:-}" ]; then
+  if ! err=$(aws sts get-caller-identity 2>&1 >/dev/null); then
+    prof=${AWS_PROFILE:-default}
+    if [ -t 0 ] && [ -n "$(aws configure get sso_session --profile "$prof" 2>/dev/null)$(aws configure get sso_start_url --profile "$prof" 2>/dev/null)" ]; then
+      echo "The AWS CLI is not signed in as profile $prof. Opening the sign-in page." >&2
+      aws sso login --profile "$prof" >&2 && err=$(aws sts get-caller-identity 2>&1 >/dev/null) && err=
+    fi
+    if [ -n "$err" ]; then
+      sso=$(for p in $(aws configure list-profiles 2>/dev/null); do
+              if [ -n "$(aws configure get sso_session --profile "$p" 2>/dev/null)$(aws configure get sso_start_url --profile "$p" 2>/dev/null)" ]; then echo "$p"; fi
+            done | paste -sd ' ' -)
+      cat >&2 <<EOF
+The AWS CLI is not signed in (profile $prof):
+${err#*: }
+Sign in, then run this again:
+    aws login                                   # your own account
+    aws sso login --profile NAME                # a company account with SSO
+    export AWS_PROFILE=NAME                     #   and use that profile
+SSO profiles on this machine: ${sso:-none}
+EOF
+      return 1 2>/dev/null || exit 1
+    fi
+  fi
+  LOOKUP_SIGNED_IN=1
+fi
+
 # owner/name of this clone's GitHub repository, from its remote
 export GITHUB_REPO=$(git remote get-url origin | sed -E 's#\.git$##; s#^.*[:/]([^/:]+/[^/]+)$#\1#')
 export AWS_ACCOUNT_ID=$(q sts get-caller-identity --query Account)
