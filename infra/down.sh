@@ -7,7 +7,7 @@
 # place, because it costs nothing and every ECS deployment uses it.
 set -uo pipefail
 cd "$(dirname "$0")/.."
-source infra/lookup.sh
+source infra/lookup.sh || exit 1
 SECONDS=0
 
 # Services, then load balancers, then target groups, in both environments
